@@ -2,7 +2,7 @@ import requests
 
 def get_weather(city):
     try:
-        # Step 1: Get city location ID
+        # 1. Get city ID from BBC location API
         url = "https://locator-service.api.bbci.co.uk/locations"
         params = {
             "api_key": "AGbFAKx58hyjQScCXIYrxuEwJh2W2cmv",
@@ -16,21 +16,26 @@ def get_weather(city):
             "format": "json"
         }
 
-        res = requests.get(url, params=params).json()
-        results = res.get("response", {}).get("results", [])
+        res = requests.get(url, params=params)
+        loc_data = res.json()
 
+        # DEBUG: print full response (only for temporary testing)
+        print("Location API response:", loc_data)
+
+        results = loc_data.get("response", {}).get("results", [])
         if not results:
-            return {"error": f"City '{city}' not found."}
+            return {"error": f"No matching location found for '{city}'."}
 
         location_id = results[0]["id"]
 
-        # Step 2: Get weather forecast
+        # 2. Fetch weather
         weather_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{location_id}"
         weather_data = requests.get(weather_url).json()
-        forecast = weather_data.get("forecasts", {}).get("today")
+        print("Weather API response:", weather_data)
 
+        forecast = weather_data.get("forecasts", {}).get("today")
         if not forecast:
-            return {"error": "No forecast data available."}
+            return {"error": "No forecast data found."}
 
         return {
             "city": city,
@@ -41,4 +46,3 @@ def get_weather(city):
 
     except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}
-
