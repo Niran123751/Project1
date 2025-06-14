@@ -1,51 +1,52 @@
-import requests
+import os
 import traceback
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()  # Load the .env file
 
 def get_weather(city):
     try:
-        # 1. Get city location ID from BBC API
-        url = "https://locator-service.api.bbci.co.uk/locations"
-        params = {
-            "api_key": "AGbFAKx58hyjQScCXIYrxuEwJh2W2cmv",
-            "stack": "aws",
-            "locale": "en",
-            "filter": "international",
-            "place-types": "settlement,airport,district",
-            "order": "importance",
-            "s": city,
-            "a": "true",
-            "format": "json"
-        }
+        api_key = os.getenv("OWM_API_KEY")
+        if not api_key:
+            return {"error": "API key not configured."}
 
-        res = requests.get(url, params=params, timeout=5)
-        loc_data = res.json()
-        print("Location API response:", loc_data)
+        # 1. Get coordinates using Geocoding API
+        loc_resp = requests.get(
+            "http://api.openweathermap.org/geo/1.0/direct",
+            params={"q": city, "limit": 1, "appid": api_key},
+            timeout=5
+        )
+        loc_resp.raise_for_status()
+        loc_data = loc_resp.json()
+        print("Geocoding response:", loc_data)
 
-        results = loc_data.get("response", {}).get("results", [])
-        print("results type:", type(results), results)
+        if not loc_data:
+            return {"error": f"City '{city}' not found."}
 
-        if isinstance(results, list) and results:
-            location_id = results[0].get("id")
-        else:
-            return {"error": f"No valid location found for '{city}'."}
+        lat, lon = loc_data[0]["lat"], loc_data[0]["lon"]
 
-        # 2. Get weather forecast for the location ID
-        weather_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{location_id}"
-        weather_data = requests.get(weather_url, timeout=5).json()
-        print("Weather API response:", weather_data)
+        # 2. Get current weather
+        weather_resp = requests.get(
+            "https://api.openweathermap.org/data/2.5/weather",
+            params={"lat": lat, "lon": lon, "appid": api_key, "units": "metric"},
+            timeout=5
+        )
+        weather_resp.raise_for_status()
+        data = weather_resp.json()
+        print("Weather response:", data)
 
-        forecast = weather_data.get("forecasts", {}).get("today", {})
-        if not forecast:
-            return {"error": "No forecast data found."}
+        main = data.get("main", {})
+        weather_desc = data.get("weather", [{}])[0].get("description", "")
 
         return {
             "city": city,
-            "temperature_min": forecast.get("min_temp"),
-            "temperature_max": forecast.get("max_temp"),
-            "summary": forecast.get("summary")
+            "temperature": main.get("temp"),
+            "feels_like": main.get("feels_like"),
+            "weather": weather_desc
         }
 
     except Exception:
-        print("ERROR occurred:")
-        print(traceback.format_exc())
+        print("ERROR occurred:\n", traceback.format_exc())
         return {"error": "Internal server error. Check logs for details."}
+
