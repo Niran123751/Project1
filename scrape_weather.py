@@ -3,6 +3,7 @@ import traceback
 
 def get_weather(city):
     try:
+        # 1. Get city location ID from BBC API
         url = "https://locator-service.api.bbci.co.uk/locations"
         params = {
             "api_key": "AGbFAKx58hyjQScCXIYrxuEwJh2W2cmv",
@@ -18,18 +19,19 @@ def get_weather(city):
 
         res = requests.get(url, params=params, timeout=5)
         loc_data = res.json()
-
         print("Location API response:", loc_data)
 
         results = loc_data.get("response", {}).get("results", [])
-        if not results:
-            return {"error": f"No matching location found for '{city}'."}
+        print("results type:", type(results), results)
 
-        location_id = results[0]["id"]
+        if isinstance(results, list) and results:
+            location_id = results[0].get("id")
+        else:
+            return {"error": f"No valid location found for '{city}'."}
 
+        # 2. Get weather forecast for the location ID
         weather_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{location_id}"
         weather_data = requests.get(weather_url, timeout=5).json()
-
         print("Weather API response:", weather_data)
 
         forecast = weather_data.get("forecasts", {}).get("today", {})
@@ -43,9 +45,7 @@ def get_weather(city):
             "summary": forecast.get("summary")
         }
 
-    except Exception as e:
+    except Exception:
         print("ERROR occurred:")
-        traceback_str = traceback.format_exc()
-        print(traceback_str)
+        print(traceback.format_exc())
         return {"error": "Internal server error. Check logs for details."}
-
