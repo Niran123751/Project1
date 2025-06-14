@@ -6,6 +6,10 @@ app = FastAPI()
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Weather API"}
+@app.get("/")
+def root():
+    return {"message": "App is running!"}
+
 
 @app.get("/weather")
 def weather(city: str = Query(..., description="City name")):
