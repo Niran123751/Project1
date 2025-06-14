@@ -1,8 +1,8 @@
 import requests
+import traceback
 
 def get_weather(city):
     try:
-        # 1. Get city ID from BBC location API
         url = "https://locator-service.api.bbci.co.uk/locations"
         params = {
             "api_key": "AGbFAKx58hyjQScCXIYrxuEwJh2W2cmv",
@@ -16,10 +16,9 @@ def get_weather(city):
             "format": "json"
         }
 
-        res = requests.get(url, params=params)
+        res = requests.get(url, params=params, timeout=5)
         loc_data = res.json()
 
-        # DEBUG: print full response (only for temporary testing)
         print("Location API response:", loc_data)
 
         results = loc_data.get("response", {}).get("results", [])
@@ -28,12 +27,12 @@ def get_weather(city):
 
         location_id = results[0]["id"]
 
-        # 2. Fetch weather
         weather_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{location_id}"
-        weather_data = requests.get(weather_url).json()
+        weather_data = requests.get(weather_url, timeout=5).json()
+
         print("Weather API response:", weather_data)
 
-        forecast = weather_data.get("forecasts", {}).get("today")
+        forecast = weather_data.get("forecasts", {}).get("today", {})
         if not forecast:
             return {"error": "No forecast data found."}
 
@@ -45,4 +44,8 @@ def get_weather(city):
         }
 
     except Exception as e:
-        return {"error": f"An error occurred: {str(e)}"}
+        print("ERROR occurred:")
+        traceback_str = traceback.format_exc()
+        print(traceback_str)
+        return {"error": "Internal server error. Check logs for details."}
+
